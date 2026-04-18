@@ -57,14 +57,43 @@
 | **训练数据** | [babylm-zho-100M](https://huggingface.co/datasets/chinese-babylm-org/babylm-zho-100M) |
 | **评测代码** | [evaluation-pipeline-2025](https://github.com/SiyuanSong2004/evaluation-pipeline-2025) |
 
+### 挑战赛时间线
+
+| 日期 | 事件 |
+|------|------|
+| 2026年3月20日 | 任务发布，官网上线，注册开始 |
+| 2026年4月15日 | 详细指南发布，训练数据和开放评测任务下发 |
+| 2026年4月22日 | Baseline模型发布，HuggingFace排行榜上线 |
+| **2026年5月25日** | **注册截止** |
+| **2026年6月11日** | **模型提交截止**，隐藏测试集和完整评测流水线发布 |
+| 2026年6月20日 | 隐藏测试集最终结果提交截止 |
+| 2026年6月30日 | 获奖者公布，最终排行榜发布 |
+
 ### 评测赛道
 
 | 赛道 | 任务 | 说明 |
 |------|------|------|
-| **NLU Track** | zhOBLIMP | 零样本最小对语法判断 |
-| **Hanzi Track** | hanzi_structure, hanzi_pinyin | 汉字结构与拼音知识 |
-| **Cog Track** | word_fmri, fmri | fMRI 脑编码预测 |
-| **Fine-tune Track** | AFQMC, OCNLI, TNews, CLUEWSC2020 | CLUE 中文理解基准微调 |
+| **NLU Track** 📖 | zhOBLiMP | 零样本最小对语法判断（来自CLUE和ZhoBLiMP） |
+| **Cognitive Track** 🧠 | MulCogBench | 模型表征与人类认知信号的对比（行为+神经模态） |
+| **HANZI Track** 文 | PinyinBench, HanziBench | 汉字拼音和结构属性（最小对比较） |
+| **Fine-tune Track** | AFQMC, OCNLI, TNews, CLUEWSC2020 | CLUE中文理解基准微调 |
+
+### 重要规则
+
+- **无架构限制**: Transformer encoder/decoder、encoder-decoder、state-space模型或新设计均可
+- **无训练epoch限制**: 可以任意训练轮次
+- **数据限制**: 训练语料不得超过100M词预算
+- **评测方式**: Phase 1（开放评测）+ Phase 2（隐藏测试集），最终得分取平均
+- **可复现性要求**: 各赛道前3名须提交全部代码、训练数据和模型权重
+- **模型提交**: 所有最终模型须上传至HuggingFace
+
+### 组织者
+
+- **胡海 (Hai Hu)** — 香港城市大学（挑战赛主席）
+- **宋思远 (Siyuan Song)** — 德克萨斯大学奥斯汀分校
+- **何林阳 (Linyang He)** — 哥伦比亚大学
+- **王少楠 (Shaonan Wang)** — 香港理工大学
+- 及来自中科院、上海交大、北师大、清华的研究者
 
 ---
 
@@ -150,11 +179,21 @@ pip install -r requirements.txt
 |------|-----|
 | **数据集名称** | babylm-zho-100M |
 | **来源** | [HuggingFace](https://huggingface.co/datasets/chinese-babylm-org/babylm-zho-100M) |
-| **样本数** | 183,598 条 |
-| **字符数** | ~154M 字符 |
-| **词数** | ~110M 词（jieba分词） |
-| **Token数** | ~82M tokens（BPE） |
+| **样本数** | ~184K 条（过滤后） |
+| **Token数** | ~101M tokens（jieba分词） |
 | **语言** | 中文（简体为主） |
+
+### 数据来源分布
+
+| 类别 | 说明 | Token数 | 来源 |
+|------|------|---------|------|
+| 字幕 | 影视字幕，反映日常口语 | 91.3M | WenetSpeech (已过滤1/2) |
+| 儿童书籍 | 故事书和阅读理解数据集 | 16.0M | Quangushi, GlotStoryBooks, CFT, CMRC-2019 |
+| 儿童导向言语 | 对儿童说的话的转录 | 9.6M | CHILDES, ChildMandarin |
+| 教育 | 考题、语法练习、学生作文 | 13.5M | GAOKAO, CK-12, CSQ, FCGEC |
+| 儿童可及言语 | 日常生活中儿童可听到的言语转录 | 7.4M | NaturalConv, ChildMandarin |
+| 儿童百科 | 适合年龄的非虚构读物 | 25K | WikiJunior, Wikibooks |
+| **总计** | | **~137.8M** | |
 
 ### 自动下载与预处理
 
