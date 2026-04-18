@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# 虚拟环境
+.env
+.venv
+env/
+venv/
+
+# 模型输出（太大不上传）
+output/
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# 数据文件（从HuggingFace下载）
+data/raw/
+data/processed/*.txt
+data/processed/*.pt
+# 但保留tokenizer
+!data/tokenizer/
+
+# 日志
+*.log
+training.log
+
+# 评测数据和结果
+evaluation/evaluation_data/
+evaluation/results/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/

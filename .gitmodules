@@ -1,0 +1,3 @@
+[submodule "evaluation"]
+	path = evaluation
+	url = https://github.com/SiyuanSong2004/evaluation-pipeline-2025.git
