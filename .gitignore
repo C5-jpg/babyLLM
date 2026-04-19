@@ -48,3 +48,10 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# WandB
+wandb/
+
+# nohup
+nohup.out
+training_output.log

@@ -1,7 +1,8 @@
 """
 ChineseBabyLM 挑战赛训练脚本
 使用 GPT-2 架构在 babylm-zho-100M 数据上从头预训练
-适配硬件: NVIDIA RTX 5060 Ti (16GB VRAM)
+支持多GPU DDP训练 (通过 HuggingFace Accelerate)
+适配硬件: NVIDIA RTX A6000 (49GB VRAM) x3
 """
 
 import os
@@ -20,6 +21,8 @@ from transformers import (
     get_scheduler,
     set_seed,
 )
+from accelerate import Accelerator
+import wandb
 
 from tqdm import tqdm
 
@@ -99,12 +102,20 @@ class TextDataset(Dataset):
 # 训练函数
 # ============================================================
 def train(args):
-    # 设备
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"使用设备: {device}")
+    # ============================================================
+    # 初始化 Accelerate (自动管理多GPU DDP)
+    # ============================================================
+    accelerator = Accelerator(
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        mixed_precision="no",  # A6000 不需要混合精度
+    )
+    
+    # 设备信息
+    accelerator.print(f"使用设备: {accelerator.device}")
+    accelerator.print(f"进程数: {accelerator.num_processes}")
     if torch.cuda.is_available():
-        logger.info(f"GPU: {torch.cuda.get_device_name(0)}")
-        logger.info(f"GPU 内存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+        accelerator.print(f"GPU: {torch.cuda.get_device_name()}")
+        accelerator.print(f"GPU 内存: {torch.cuda.get_device_properties(accelerator.local_process_index).total_memory / 1024**3:.1f} GB")
     
     # 随机种子
     set_seed(args.seed)
@@ -113,25 +124,23 @@ def train(args):
     # 加载 Tokenizer
     # ============================================================
     tokenizer_dir = os.path.join(args.data_dir, "tokenizer")
-    logger.info(f"加载 Tokenizer: {tokenizer_dir}")
+    accelerator.print(f"加载 Tokenizer: {tokenizer_dir}")
     
     tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer_dir)
     tokenizer.pad_token = tokenizer.eos_token
     
     vocab_size = tokenizer.vocab_size
-    logger.info(f"词表大小: {vocab_size}")
+    accelerator.print(f"词表大小: {vocab_size}")
     
     # ============================================================
-    # 模型配置 (适配 16GB VRAM)
+    # 模型配置 (GPT-2 Small, ~110M 参数)
     # ============================================================
-    # GPT-2 Small 级别的配置 (~124M 参数)
-    # 适合100M数据的规模
     config = GPT2Config(
         vocab_size=vocab_size,
-        n_positions=args.max_length,  # 最大序列长度
-        n_embd=args.d_model,          # 隐藏层维度
-        n_layer=args.n_layer,         # Transformer 层数
-        n_head=args.n_head,           # 注意力头数
+        n_positions=args.max_length,
+        n_embd=args.d_model,
+        n_layer=args.n_layer,
+        n_head=args.n_head,
         resid_pdrop=0.1,
         embd_pdrop=0.1,
         attn_pdrop=0.1,
@@ -140,54 +149,59 @@ def train(args):
         eos_token_id=tokenizer.eos_token_id,
     )
     
-    logger.info(f"\n模型配置:")
-    logger.info(f"  词表大小: {config.vocab_size}")
-    logger.info(f"  序列长度: {config.n_positions}")
-    logger.info(f"  隐藏维度: {config.n_embd}")
-    logger.info(f"  层数: {config.n_layer}")
-    logger.info(f"  注意力头: {config.n_head}")
+    if accelerator.is_main_process:
+        logger.info(f"\n模型配置:")
+        logger.info(f"  词表大小: {config.vocab_size}")
+        logger.info(f"  序列长度: {config.n_positions}")
+        logger.info(f"  隐藏维度: {config.n_embd}")
+        logger.info(f"  层数: {config.n_layer}")
+        logger.info(f"  注意力头: {config.n_head}")
     
     # 创建模型
     model = GPT2LMHeadModel(config)
-    model.to(device)
     
     # 计算参数量
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    logger.info(f"\n模型参数量:")
-    logger.info(f"  总参数: {total_params:,} ({total_params/1e6:.1f}M)")
-    logger.info(f"  可训练参数: {trainable_params:,} ({trainable_params/1e6:.1f}M)")
+    accelerator.print(f"\n模型参数量:")
+    accelerator.print(f"  总参数: {total_params:,} ({total_params/1e6:.1f}M)")
+    accelerator.print(f"  可训练参数: {trainable_params:,} ({trainable_params/1e6:.1f}M)")
     
     # ============================================================
     # 数据集
     # ============================================================
     train_file = os.path.join(args.data_dir, "processed", "train.txt")
     if not os.path.exists(train_file):
-        # 如果没有分割文件，使用合并文件
         train_file = os.path.join(args.data_dir, "processed", "all.txt")
     
-    logger.info(f"\n加载训练数据: {train_file}")
-    train_dataset = TextDataset(
+    accelerator.print(f"\n加载训练数据: {train_file}")
+    
+    # 只在主进程显示 tokenizing 进度条
+    if not accelerator.is_main_process:
+        import tqdm as _tqdm
+        _tqdm.tqdm.disable = True
+    
+    full_dataset = TextDataset(
         tokenizer=tokenizer,
         file_path=train_file,
         block_size=args.max_length,
     )
     
     # 划分训练集和验证集 (90% / 10%)
-    train_size = int(0.9 * len(train_dataset))
-    val_size = len(train_dataset) - train_size
+    train_size = int(0.9 * len(full_dataset))
+    val_size = len(full_dataset) - train_size
     train_dataset, val_dataset = torch.utils.data.random_split(
-        train_dataset, [train_size, val_size]
+        full_dataset, [train_size, val_size]
     )
-    logger.info(f"训练集: {len(train_dataset)} 样本")
-    logger.info(f"验证集: {len(val_dataset)} 样本")
+    accelerator.print(f"训练集: {len(train_dataset)} 样本")
+    accelerator.print(f"验证集: {len(val_dataset)} 样本")
     
     # DataLoader
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=0,  # Windows 下推荐设为0
+        num_workers=2,
         pin_memory=True,
         drop_last=True,
     )
@@ -195,7 +209,7 @@ def train(args):
         val_dataset,
         batch_size=args.batch_size,
         shuffle=False,
-        num_workers=0,
+        num_workers=2,
         pin_memory=True,
         drop_last=False,
     )
@@ -210,8 +224,8 @@ def train(args):
         betas=(0.9, 0.95),
     )
     
-    # 计算总训练步数
-    num_update_steps_per_epoch = len(train_loader) // args.gradient_accumulation_steps
+    # 计算总训练步数 (考虑多GPU)
+    num_update_steps_per_epoch = len(train_loader) // accelerator.num_processes // args.gradient_accumulation_steps
     max_train_steps = args.num_epochs * num_update_steps_per_epoch
     
     lr_scheduler = get_scheduler(
@@ -221,32 +235,75 @@ def train(args):
         num_training_steps=max_train_steps,
     )
     
-    logger.info(f"\n训练配置:")
-    logger.info(f"  Batch size: {args.batch_size}")
-    logger.info(f"  Gradient accumulation: {args.gradient_accumulation_steps}")
-    logger.info(f"  有效 batch size: {args.batch_size * args.gradient_accumulation_steps}")
-    logger.info(f"  学习率: {args.learning_rate}")
-    logger.info(f"  调度器: {args.lr_scheduler_type}")
-    logger.info(f"  预热比例: {args.warmup_ratio}")
-    logger.info(f"  Epoch数: {args.num_epochs}")
-    logger.info(f"  总训练步数: {max_train_steps}")
+    # ============================================================
+    # Accelerate 准备 (自动处理DDP, 设备分配等)
+    # ============================================================
+    model, optimizer, train_loader, val_loader, lr_scheduler = accelerator.prepare(
+        model, optimizer, train_loader, val_loader, lr_scheduler
+    )
+    
+    effective_batch_size = args.batch_size * args.gradient_accumulation_steps * accelerator.num_processes
+    
+    # ============================================================
+    # WandB 初始化 (只在主进程)
+    # ============================================================
+    if accelerator.is_main_process:
+        run_name = args.wandb_run_name or f"gpt2-{args.d_model}d-{args.n_layer}l-{args.n_head}h-3gpu"
+        wandb.init(
+            project=args.wandb_project,
+            entity=args.wandb_entity,
+            name=run_name,
+            mode=args.wandb_mode,
+            config={
+                "model": "GPT-2",
+                "d_model": args.d_model,
+                "n_layer": args.n_layer,
+                "n_head": args.n_head,
+                "max_length": args.max_length,
+                "vocab_size": vocab_size,
+                "total_params": total_params,
+                "batch_size_per_gpu": args.batch_size,
+                "effective_batch_size": effective_batch_size,
+                "gradient_accumulation_steps": args.gradient_accumulation_steps,
+                "learning_rate": args.learning_rate,
+                "weight_decay": args.weight_decay,
+                "num_epochs": args.num_epochs,
+                "warmup_ratio": args.warmup_ratio,
+                "lr_scheduler": args.lr_scheduler_type,
+                "max_grad_norm": args.max_grad_norm,
+                "num_gpus": accelerator.num_processes,
+                "seed": args.seed,
+                "dataset": "babylm-zho-100M",
+            },
+        )
+        accelerator.print(f"WandB 已初始化: project={args.wandb_project}, run={run_name}")
+    
+    accelerator.print(f"\n训练配置:")
+    accelerator.print(f"  GPU 数量: {accelerator.num_processes}")
+    accelerator.print(f"  Batch size/GPU: {args.batch_size}")
+    accelerator.print(f"  Gradient accumulation: {args.gradient_accumulation_steps}")
+    accelerator.print(f"  有效 batch size: {effective_batch_size}")
+    accelerator.print(f"  学习率: {args.learning_rate}")
+    accelerator.print(f"  调度器: {args.lr_scheduler_type}")
+    accelerator.print(f"  预热比例: {args.warmup_ratio}")
+    accelerator.print(f"  Epoch数: {args.num_epochs}")
+    accelerator.print(f"  总训练步数: {max_train_steps}")
     
     # ============================================================
     # 输出目录
     # ============================================================
     output_dir = args.output_dir
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # 保存配置
-    config.save_pretrained(output_dir)
-    tokenizer.save_pretrained(output_dir)
+    if accelerator.is_main_process:
+        os.makedirs(output_dir, exist_ok=True)
+        config.save_pretrained(output_dir)
+        tokenizer.save_pretrained(output_dir)
     
     # ============================================================
     # 训练循环
     # ============================================================
-    logger.info("\n" + "=" * 60)
-    logger.info("开始训练!")
-    logger.info("=" * 60)
+    accelerator.print("\n" + "=" * 60)
+    accelerator.print("开始训练!")
+    accelerator.print("=" * 60)
     
     global_step = 0
     best_val_loss = float("inf")
@@ -260,106 +317,149 @@ def train(args):
             train_loader,
             desc=f"Epoch {epoch + 1}/{args.num_epochs}",
             ncols=120,
+            disable=not accelerator.is_main_process,
         )
         
         for step, batch in enumerate(progress_bar):
-            input_ids = batch["input_ids"].to(device)
-            labels = batch["labels"].to(device)
-            
-            # 前向传播
-            outputs = model(input_ids=input_ids, labels=labels)
-            loss = outputs.loss / args.gradient_accumulation_steps
-            
-            # 反向传播
-            loss.backward()
-            
-            # 梯度裁剪
-            if (step + 1) % args.gradient_accumulation_steps == 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+            with accelerator.accumulate(model):
+                input_ids = batch["input_ids"]
+                labels = batch["labels"]
+                
+                # 前向传播
+                outputs = model(input_ids=input_ids, labels=labels)
+                loss = outputs.loss
+                
+                # 反向传播 (Accelerate 管理)
+                accelerator.backward(loss)
+                
+                # 梯度裁剪
+                if accelerator.sync_gradients:
+                    accelerator.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
                 global_step += 1
             
-            epoch_loss += loss.item() * args.gradient_accumulation_steps
+            epoch_loss += loss.item()
             
             # 更新进度条
             current_lr = lr_scheduler.get_last_lr()[0]
-            ppl = math.exp(min(loss.item() * args.gradient_accumulation_steps, 20))
+            raw_loss = loss.item()
+            ppl = math.exp(min(raw_loss, 20))
             progress_bar.set_postfix(
-                loss=f"{loss.item() * args.gradient_accumulation_steps:.4f}",
+                loss=f"{raw_loss:.4f}",
                 ppl=f"{ppl:.2f}",
                 lr=f"{current_lr:.2e}",
                 step=global_step,
             )
             
-            # 定期日志
-            if global_step % args.logging_steps == 0 and global_step > 0:
+            # 定期日志 + WandB (只在主进程)
+            if global_step % args.logging_steps == 0 and global_step > 0 and accelerator.is_main_process:
                 avg_loss = epoch_loss / (step + 1)
                 logger.info(
                     f"Epoch {epoch+1} Step {global_step} | "
                     f"Loss: {avg_loss:.4f} | PPL: {math.exp(min(avg_loss, 20)):.2f} | "
                     f"LR: {current_lr:.2e}"
                 )
+                wandb.log({
+                    "train/loss": raw_loss,
+                    "train/avg_loss": avg_loss,
+                    "train/ppl": ppl,
+                    "train/learning_rate": current_lr,
+                    "train/epoch": epoch + 1,
+                    "train/step": global_step,
+                }, step=global_step)
             
-            # 定期保存
-            if global_step % args.save_steps == 0 and global_step > 0:
+            # 定期保存 (只在主进程)
+            if global_step % args.save_steps == 0 and global_step > 0 and accelerator.is_main_process:
                 checkpoint_dir = os.path.join(output_dir, f"checkpoint-{global_step}")
                 os.makedirs(checkpoint_dir, exist_ok=True)
-                model.save_pretrained(checkpoint_dir)
+                unwrapped_model = accelerator.unwrap_model(model)
+                unwrapped_model.save_pretrained(checkpoint_dir)
                 tokenizer.save_pretrained(checkpoint_dir)
                 logger.info(f"保存 checkpoint: {checkpoint_dir}")
         
         # Epoch 结束，验证
         avg_train_loss = epoch_loss / len(train_loader)
-        val_loss = evaluate(model, val_loader, device)
+        val_loss = evaluate(model, val_loader, accelerator)
         val_ppl = math.exp(min(val_loss, 20))
         
-        logger.info(
+        accelerator.print(
             f"\nEpoch {epoch+1} 完成 | "
             f"训练 Loss: {avg_train_loss:.4f} | "
             f"验证 Loss: {val_loss:.4f} | "
             f"验证 PPL: {val_ppl:.2f}"
         )
         
-        # 保存最佳模型
-        if val_loss < best_val_loss:
+        # WandB 记录 epoch 指标 (只在主进程)
+        if accelerator.is_main_process:
+            wandb.log({
+                "epoch/train_loss": avg_train_loss,
+                "epoch/val_loss": val_loss,
+                "epoch/val_ppl": val_ppl,
+                "epoch/best_val_loss": best_val_loss,
+                "epoch/epoch": epoch + 1,
+            }, step=global_step)
+        
+        # 保存最佳模型 (只在主进程)
+        if val_loss < best_val_loss and accelerator.is_main_process:
             best_val_loss = val_loss
             best_dir = os.path.join(output_dir, "best_model")
-            model.save_pretrained(best_dir)
+            os.makedirs(best_dir, exist_ok=True)
+            unwrapped_model = accelerator.unwrap_model(model)
+            unwrapped_model.save_pretrained(best_dir)
             tokenizer.save_pretrained(best_dir)
             logger.info(f"保存最佳模型 (val_loss={val_loss:.4f}): {best_dir}")
         
-        # 每个 epoch 结束保存
-        epoch_dir = os.path.join(output_dir, f"epoch-{epoch+1}")
-        model.save_pretrained(epoch_dir)
-        tokenizer.save_pretrained(epoch_dir)
+        # 每个 epoch 结束保存 (只在主进程)
+        if accelerator.is_main_process:
+            epoch_dir = os.path.join(output_dir, f"epoch-{epoch+1}")
+            os.makedirs(epoch_dir, exist_ok=True)
+            unwrapped_model = accelerator.unwrap_model(model)
+            unwrapped_model.save_pretrained(epoch_dir)
+            tokenizer.save_pretrained(epoch_dir)
     
     # ============================================================
     # 训练结束
     # ============================================================
-    logger.info("\n" + "=" * 60)
-    logger.info("训练完成!")
-    logger.info(f"最佳验证 Loss: {best_val_loss:.4f}")
-    logger.info(f"最佳验证 PPL: {math.exp(min(best_val_loss, 20)):.2f}")
-    logger.info(f"模型保存在: {output_dir}")
-    logger.info("=" * 60)
+    accelerator.print("\n" + "=" * 60)
+    accelerator.print("训练完成!")
+    accelerator.print(f"最佳验证 Loss: {best_val_loss:.4f}")
+    accelerator.print(f"最佳验证 PPL: {math.exp(min(best_val_loss, 20)):.2f}")
+    accelerator.print(f"模型保存在: {output_dir}")
+    accelerator.print("=" * 60)
+    
+    # WandB 结束 (只在主进程)
+    if accelerator.is_main_process:
+        wandb.finish()
+    
+    accelerator.end_training()
 
 
-def evaluate(model, val_loader, device):
+def evaluate(model, val_loader, accelerator):
     """评估模型"""
     model.eval()
     total_loss = 0.0
     
     with torch.no_grad():
-        for batch in tqdm(val_loader, desc="验证中", ncols=100):
-            input_ids = batch["input_ids"].to(device)
-            labels = batch["labels"].to(device)
+        for batch in tqdm(val_loader, desc="验证中", ncols=100, 
+                         disable=not accelerator.is_main_process):
+            input_ids = batch["input_ids"]
+            labels = batch["labels"]
             
             outputs = model(input_ids=input_ids, labels=labels)
             total_loss += outputs.loss.item()
     
-    avg_loss = total_loss / len(val_loader)
+    # 多GPU间同步 loss
+    total_loss_tensor = torch.tensor(total_loss, device=accelerator.device)
+    num_batches_tensor = torch.tensor(len(val_loader), device=accelerator.device)
+    
+    # Gather from all processes
+    gathered_losses = accelerator.gather(total_loss_tensor)
+    gathered_counts = accelerator.gather(num_batches_tensor)
+    
+    avg_loss = gathered_losses.sum().item() / gathered_counts.sum().item()
     model.train()
     return avg_loss
 
@@ -381,27 +481,33 @@ def main():
     parser.add_argument("--max_length", type=int, default=512, help="最大序列长度")
     
     # 训练参数
-    parser.add_argument("--batch_size", type=int, default=8, help="批次大小")
+    parser.add_argument("--batch_size", type=int, default=16, help="每GPU批次大小")
     parser.add_argument("--learning_rate", type=float, default=6e-4, help="学习率")
     parser.add_argument("--weight_decay", type=float, default=0.1, help="权重衰减")
     parser.add_argument("--num_epochs", type=int, default=10, help="训练轮次")
     parser.add_argument("--warmup_ratio", type=float, default=0.1, help="预热比例")
     parser.add_argument("--max_grad_norm", type=float, default=1.0, help="最大梯度范数")
-    parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="梯度累积步数")
+    parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="梯度累积步数")
     parser.add_argument("--lr_scheduler_type", type=str, default="cosine", help="学习率调度器")
     
     # 日志和保存
     parser.add_argument("--logging_steps", type=int, default=100, help="日志间隔步数")
-    parser.add_argument("--save_steps", type=int, default=1000, help="保存间隔步数")
+    parser.add_argument("--save_steps", type=int, default=2000, help="保存间隔步数")
     
     # 其他
     parser.add_argument("--seed", type=int, default=42, help="随机种子")
+    
+    # wandb 参数
+    parser.add_argument("--wandb_project", type=str, default="chinese-babylm", help="wandb 项目名")
+    parser.add_argument("--wandb_entity", type=str, default=None, help="wandb 实体/团队名")
+    parser.add_argument("--wandb_run_name", type=str, default=None, help="wandb 运行名称")
+    parser.add_argument("--wandb_mode", type=str, default="online", help="wandb 模式: online/offline/disabled")
     
     args = parser.parse_args()
     
     # 打印配置
     logger.info("=" * 60)
-    logger.info("ChineseBabyLM 训练配置")
+    logger.info("ChineseBabyLM 训练配置 (Accelerate 多GPU + WandB)")
     logger.info("=" * 60)
     for k, v in vars(args).items():
         logger.info(f"  {k}: {v}")
