@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# 虚拟环境
+.env
+.venv
+env/
+venv/
+
+# 模型输出（太大不上传）
+output/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+
+# 数据文件（从HuggingFace下载）
+data/raw/
+data/processed/*.txt
+data/processed/*.pt
+data/processed_v2/*.txt
+data/processed_v2/*.pt
+# 保留 tokenizer
+!data/tokenizer/
+!data/tokenizer_v2/
+
+# 日志
+*.log
+wandb/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# nohup
+nohup.out

@@ -1,0 +1,56 @@
+# IDE and Editor
+.kilo/
+.ruff_cache/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git submodules (exclude nested .git directories)
+babyLLM/.git/
+chinese-babylm-eval-pipeline/.git/
+
+# Large training logs (optional - uncomment if needed)
+# babyLLM/training.log
+# babyLLM/training_output.log
+# babyLLM/training_*.log
+
+# Data directories (exclude large data files)
+babyLLM/data/processed/
+babyLLM/data/processed_v2/
+babyLLM/data/processed_v3/
+babyLLM/data/processed_v6/
+babyLLM/data/processed_v7/
+babyLLM/data/raw/
+chinese-babylm-eval-pipeline/evaluation_data/
+
+# Model outputs
+babyLLM/output/
+chinese-babylm-eval-pipeline/results/
+
+# Cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables
+.env
+.env.local
+
+# WandB
+wandb/
+
+# OS
+.DS_Store
+Thumbs.db
