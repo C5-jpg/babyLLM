@@ -1,0 +1,11 @@
+{"timestamp": "2026-05-12T01:28:38+08:00", "action": "analysis_started", "details": "Comprehensive V1-V14 analysis initiated"}
+{"timestamp": "2026-05-12T01:29:00+08:00", "action": "codebase_exploration", "details": "Explored all 14 version directories, training scripts, eval results, checkpoints"}
+{"timestamp": "2026-05-12T01:30:00+08:00", "action": "v14_training_launched", "details": "V14 stages 3-5 launched (PID 4155382), stage3_polish started with lr=1e-5, 5 epochs"}
+{"timestamp": "2026-05-12T01:30:15+08:00", "action": "eval_data_collected", "details": "Collected eval JSONs from V8-V14: V8 PPL=50.84, V9 PPL=50.84, V10 PPL=42.89, V11 PPL=40.72, V12 PPL=38.84, V13 PPL=38.68"}
+{"timestamp": "2026-05-12T01:31:00+08:00", "action": "v15_train_script_created", "details": "Created src/v15/train_v15.py with multi-scale EMA, gradient norm monitoring, 640d/14L/10Q/5KV GQA"}
+{"timestamp": "2026-05-12T01:31:30+08:00", "action": "v15_eval_script_created", "details": "Created src/v15/evaluate_v15.py with token accuracy, ISO 8601 timestamps"}
+{"timestamp": "2026-05-12T01:32:00+08:00", "action": "standardized_eval_created", "details": "Created src/eval_standardized.py for V1-V14 cross-version evaluation"}
+{"timestamp": "2026-05-12T01:32:30+08:00", "action": "v15_pipeline_created", "details": "Created launch_v15_pipeline.sh with 2-stage pipeline (CLM→MNTP)"}
+{"timestamp": "2026-05-12T01:33:00+08:00", "action": "analysis_script_created", "details": "Created src/analyze_versions.py for deriving PPL/10M params, tokens/param ratios"}
+{"timestamp": "2026-05-12T01:33:30+08:00", "action": "docs_created", "details": "Created V1_V14_COMPREHENSIVE_ANALYSIS.md and V15_TRAINING_PROTOCOL.md"}
+{"timestamp": "2026-05-12T01:35:00+08:00", "action": "v14_stage3_progress", "details": "V14 Stage 3 training: Epoch 1/5, step 1674/2772, eval PPL=41.65 (best=3.7268)"}

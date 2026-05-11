@@ -81,6 +81,7 @@ class ModelForSequenceClassification(nn.Module):
         hidden_size = model_config.hidden_size
         self.classifier: nn.Module = ClassifierHead(config, hidden_size)
         self.take_final: bool = config.take_final
+        self.classifier.to(self.transformer.dtype)
 
     def forward(self: ModelForSequenceClassification, input_data: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         """This function handles the forward call of the model. It

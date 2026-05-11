@@ -1,0 +1,147 @@
+{
+  "metadata": {
+    "timestamp": "2026-05-12T01:35:00+08:00",
+    "val_file": "/mnt/sda/kehe/babyllm_output/babylm-v14/data_v14/val.txt",
+    "max_length": 1024,
+    "note": "V14 stages 3-5 training in progress. V1/V2/V4-V6 pending standardized re-eval. V3 failed.",
+    "versions_evaluated": ["v8", "v9", "v10", "v11", "v12", "v13", "v14"]
+  },
+  "results": {
+    "v1": {
+      "version": "v1",
+      "status": "pending_eval",
+      "arch": "gpt2",
+      "params": 110000000,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-gpt2/best_model",
+      "note": "GPT-2 architecture, different tokenizer - needs dedicated eval script"
+    },
+    "v2": {
+      "version": "v2",
+      "status": "pending_eval",
+      "arch": "llama",
+      "params": 125000000,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-llama-v2/best_model",
+      "note": "Previous eval showed PPL=1824.45 (likely tokenizer mismatch bug), needs re-eval"
+    },
+    "v3": {
+      "version": "v3",
+      "status": "failed",
+      "reason": "vocab_size mismatch crash (AssertionError: Padding_idx must be within num_embeddings), no checkpoints produced",
+      "timestamp": "2026-04-20T00:00:00Z"
+    },
+    "v4": {
+      "version": "v4",
+      "status": "pending_eval",
+      "arch": "llama",
+      "params": 350000000,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-llama-v4/best_model",
+      "note": "350M params, severely undertrained (tokens/param=0.23)"
+    },
+    "v5": {
+      "version": "v5",
+      "status": "pending_eval",
+      "arch": "llama",
+      "params": 51000000,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-llama-v5/best_model",
+      "note": "Pre-KD model, KD model at babylm-llama-v5-kd"
+    },
+    "v6": {
+      "version": "v6",
+      "status": "pending_eval",
+      "arch": "llama",
+      "params": 75000000,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-llama-v6-stage3-kd/best_model",
+      "note": "3-stage pipeline, data cleaning removed 79% of data"
+    },
+    "v7": {
+      "version": "v7",
+      "status": "success",
+      "arch": "llama",
+      "params": 35000000,
+      "loss": 3.9286,
+      "ppl": 50.84,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-v7/best_model",
+      "timestamp": "2026-04-25T22:00:00Z",
+      "note": "8K vocab, smallest model"
+    },
+    "v8": {
+      "version": "v8",
+      "status": "success",
+      "arch": "llama",
+      "params": 35000000,
+      "loss": 3.9286,
+      "ppl": 50.84,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-v8/stage3_polish/best_model",
+      "timestamp": "2026-04-25T23:34:00Z"
+    },
+    "v9": {
+      "version": "v9",
+      "status": "success",
+      "arch": "llama",
+      "params": 35000000,
+      "loss": 3.9288,
+      "ppl": 50.84,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-v9/probe_clm_polish_lr5e-5/best_model",
+      "timestamp": "2026-04-26T01:18:00Z"
+    },
+    "v10": {
+      "version": "v10",
+      "status": "success",
+      "arch": "llama",
+      "params": 38705664,
+      "loss": 3.7585,
+      "ppl": 42.89,
+      "chunks": 4862,
+      "total_tokens": 4978688,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-v10/stage3_polish/best_model",
+      "timestamp": "2026-04-26T15:00:00Z"
+    },
+    "v11": {
+      "version": "v11",
+      "status": "success",
+      "arch": "llama",
+      "params": 38705664,
+      "loss": 3.7068,
+      "ppl": 40.72,
+      "chunks": 4862,
+      "total_tokens": 4978688,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-v11/stage5_self_distill/best_model_ema",
+      "timestamp": "2026-04-26T23:00:00Z"
+    },
+    "v12": {
+      "version": "v12",
+      "status": "success",
+      "arch": "llama",
+      "params": 54200000,
+      "loss": 3.6595,
+      "ppl": 38.84,
+      "chunks": 4858,
+      "total_tokens": 4974592,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-v12/stage2_mntp/best_model_ema",
+      "timestamp": "2026-04-27T10:00:00Z"
+    },
+    "v13": {
+      "version": "v13",
+      "status": "success",
+      "arch": "llama",
+      "params": 94246656,
+      "loss": 3.6554,
+      "ppl": 38.68,
+      "chunks": 4772,
+      "total_tokens": 4886528,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-v13/stage2_mntp/best_model_ema",
+      "timestamp": "2026-04-29T00:00:00Z"
+    },
+    "v14": {
+      "version": "v14",
+      "status": "incomplete",
+      "arch": "llama",
+      "params": 52000000,
+      "loss": 3.7870,
+      "ppl": 44.12,
+      "model_path": "/mnt/sda/kehe/babyllm_output/babylm-v14/stage2_mntp/best_model",
+      "timestamp": "2026-05-03T23:54:00Z",
+      "note": "Stages 1-2 complete, stages 3-5 training in progress (as of 2026-05-12)"
+    }
+  }
+}

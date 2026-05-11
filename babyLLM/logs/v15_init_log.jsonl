@@ -1,0 +1,5 @@
+{"timestamp": "2026-05-12T01:31:00+08:00", "action": "v15_initialized", "details": "V15 training code created based on V1-V14 analysis"}
+{"timestamp": "2026-05-12T01:31:00+08:00", "config": {"architecture": "LLaMA 640d/14L/10Q/5KV GQA", "params": "~58M", "tokenizer": "SPM 32K", "pipeline": "2-stage (CLM→MNTP)", "target_ppl": "<38.0", "target_zhoblimp": ">65%"}}
+{"timestamp": "2026-05-12T01:31:00+08:00", "inherited_practices": ["SentencePiece 32K tokenizer", "CLM+MNTP hybrid training", "Multi-scale EMA (0.999+0.9999)", "SGDR scheduler (Stage 1)", "Focal Loss (γ=2.0/1.5)", "Label smoothing annealing", "BPE dropout 0.1", "Dynamic CLM ratio", "Mask ratio annealing 0.25→0.10", "PPL-filtered data + MinHash dedup", "Gradient norm monitoring", "Eval every 200 steps"]}
+{"timestamp": "2026-05-12T01:32:00+08:00", "action": "v15_pipeline_created", "details": "launch_v15_pipeline.sh created with 2-stage pipeline, OOM retry, official eval integration"}
+{"timestamp": "2026-05-12T01:33:00+08:00", "action": "v15_data_strategy", "details": "Reuse V14 PPL-filtered data or run new PPL filtering with V13 best EMA model"}
