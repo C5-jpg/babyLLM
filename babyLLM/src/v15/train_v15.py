@@ -260,7 +260,7 @@ def _save_full_checkpoint(ckpt_dir, model, tokenizer_dir, optimizer, scheduler, 
 def log_gradient_norms(model, accelerator, global_step, wandb_run):
     """Log per-layer gradient norms for debugging."""
     if not accelerator.is_main_process:
-        return
+        return 0.0
     norms = {}
     for name, param in model.named_parameters():
         if param.grad is not None:
