@@ -1,0 +1,24 @@
+models:
+  - path: /mnt/sda/kehe/babyllm_output/babylm-v14/stage4_self_distill/best_model
+    backend: causal
+
+tasks:
+  zero_shot:
+    - zhoblimp
+    - hanzi_structure
+    - hanzi_pinyin
+  finetune:
+    - afqmc
+    - ocnli
+    - tnews
+    - cluewsc2020
+
+eval_dir: /home/kehe/babyllm/chinese-babylm-eval-pipeline/evaluation_data
+results_dir: /mnt/sda/kehe/babyllm_output/babylm-v14/official_eval
+
+finetune_hparams:
+  lr: 3.0e-5
+  batch_size: 32
+  max_epochs: 10
+  wsc_epochs: 30
+  seed: 42

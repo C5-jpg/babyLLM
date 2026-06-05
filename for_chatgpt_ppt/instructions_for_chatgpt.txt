@@ -1,0 +1,230 @@
+================================================================================
+ChatGPT PPT 制作指导说明
+================================================================================
+
+你好 ChatGPT！我需要你根据以下素材包帮我制作一份 NLPCC 2026 ChineseBabyLM
+挑战赛的中期汇报 PPT。下面是完整的指导说明。
+
+================================================================================
+一、素材包内容说明
+================================================================================
+
+本文件夹 (for_chatgpt_ppt/) 包含:
+
+1. project_context.md  — 核心上下文文档 (你正在阅读的伴侣文件)
+   包含: 项目概览、V1~V15 版本演进、三阶段训练架构、完整评测数据、
+   技术贡献量化、公式方法、失败教训等
+
+2. images/ 文件夹 — 所有可视化图片
+   - version_timeline.png   → 版本演进时间线
+   - ppl_evolution.png      → PPL 随版本变化曲线
+   - params_vs_ppl.png      → 参数量 vs PPL 散点图 (含 Pareto 前沿)
+   - efficiency_frontier.png → 参数效率分析
+   - ppl_by_stage.png       → 各版本各阶段 PPL 对比
+   - technique_impact.png   → 技术贡献量化
+   - training_pipeline.png  → 训练流水线架构图
+   - official_eval_radar.png → V13/V14/V15 评测雷达图
+   - babylm.png             → 项目 Logo
+
+3. midterm_report.pdf — 已有的 LaTeX 中期报告 (参考 Slide 结构和内容)
+4. 本文件 — 制作指导
+
+================================================================================
+二、PPT 结构与篇幅分配
+================================================================================
+
+请按照以下 Slide 结构制作 PPT (建议 12-15 页):
+
+【Slide 1: 封面】
+- 标题: BabyLM: 从头预训练中文语言模型
+- 副标题: NLPCC 2026 ChineseBabyLM Challenge — Mid-Term Report
+- 团队: SULAB / C5 Team
+- 日期: 2026-05-17
+- 可选: 插入 images/babylm.png 作为装饰
+
+【Slide 2: 比赛概况】
+- 内容: Bullet points
+  * 目标: 在 ~100M 中文字符上从头预训练小型中文 LM
+  * 约束: 不可使用外部预训练模型
+  * 评测任务: 7 个 (ZhoBLiMP、汉字结构、汉字拼音、AFQMC、OCNLI、TNEWS、WSC2020)
+  * 硬件: 4× RTX A6000 (48GB)
+- 核心 PPL 公式: PPL = exp(-1/N Σ log p(x_i | x_{<i}))
+
+【Slide 3: 版本演进时间线】
+- 插入图片: images/version_timeline.png
+- 配合 Bullet points 总结关键里程碑:
+  * 23 天完成 15 个版本迭代
+  * PPL: 597 (V2) → 38.68 (V13), 降低 93.5%
+  * 关键转折: V3 (SentencePiece), V7 (MNTP), V11 (EMA), V12 (Focal Loss)
+
+【Slide 4: 核心成果数据】
+- 插入图片: images/ppl_evolution.png
+- 关键数字用大字体突出:
+  * PPL: 597 → 38.68 (↓93.5%)
+  * 最佳模型: V13 (94.2M 参数)
+  * 最佳效率: V12 (54.2M 参数, PPL/10M=7.21)
+- 用表格展示版本摘要 (取 project_context.md 的 2.1 总览表)
+
+【Slide 5: 模型架构 (LLaMA)]】
+- 用 Bullet points 或框图展示 V13 架构:
+  * LLaMA: 768d, 14L, 12Q/4KV GQA
+  * RoPE + SwiGLU + RMSNorm Pre-Norm
+  * 94.2M 参数, tie_word_embeddings
+- 可用 images/training_pipeline.png 辅助说明
+
+【Slide 6: 三阶段训练流水线】
+- 插入图片: images/training_pipeline.png
+- 用表格展示三阶段配置:
+  | 阶段 | 方法 | LR | 核心技术 | PPL |
+  | Stage 1 | CLM | 6e-4 | SGDR + Focal Loss + EMA | 42.19→39.51(EMA) |
+  | Stage 2 | MNTP | 5e-4 | 动态 CLM/Mask 比例 + EMA | 40.73→38.68(EMA) |
+  | Stage 3 | Polish | 2e-5 | DropBlock + StochDepth | 40.32 (有害,弃用) |
+- 重点说明: Stage 3 证明有害, V14/V15 移除
+
+【Slide 7: 关键技术创新】
+- 插入图片: images/technique_impact.png
+- 用排序表格展示技术贡献:
+  1. SentencePiece Tokenizer: ~74% PPL 降低
+  2. EMA: 6~8% PPL 降低
+  3. MNTP 混合训练: 3~5 PPL 降低
+  4. SGDR 调度器: ~2 PPL 降低
+  5. Focal Loss: ~1~2 PPL 降低
+- 用 Focal Loss 和 EMA 公式补充说明
+
+【Slide 8: Tokenizer 演进】
+- 用表格对比 Tokenizer 版本 (取 project_context.md 第四节)
+- 重点案例: ByteLevel BPE 将 "今天" 拆为 UTF-8 字节 → 无意义
+- 结论: SentencePiece Unigram 32K 是中文最优选择
+
+【Slide 9: 参数效率分析】
+- 插入图片: images/params_vs_ppl.png + images/efficiency_frontier.png
+- 用表格展示:
+  | 版本 | 参数量 | PPL | PPL/10M | tokens/param |
+  | V11 | 38.7M | 40.73 | 10.53 | 2.6x |
+  | V12 | 54.2M | 38.84 | 7.21 | 1.9x |
+  | V13 | 94.2M | 38.68 | 4.11 | 1.1x |
+- 结论: Chinchilla Laws 要求 20~200x tokens/param; V13 参数过多
+
+【Slide 10: 评测结果】
+- 插入图片: images/official_eval_radar.png
+- 用表格展示 V13/V14/V15 的 7 个任务评测分数 (取 project_context.md 6.1 节)
+- 亮点: AFQMC 69.0% (接近竞赛基线 70.2%), ZhoBLiMP 63.5%
+- 弱点: 汉字拼音 ~49.5% (接近随机), anaphor/passive 低于随机基线
+
+【Slide 11: 分阶段训练细节】
+- 插入图片: images/ppl_by_stage.png
+- 用表格展示 V13 各阶段 Epoch-by-Epoch 数据 (取 project_context.md V13 部分)
+- 重点: EMA 在 Stage 1 贡献 8.4%, Stage 2 贡献 6.7%, Stage 3 仅 0.8%
+
+【Slide 12: 失败经验与教训】
+- 用 Bullet points 列出关键失败:
+  * V2: ByteLevel BPE 灾难 (中文→UTF-8字节)
+  * V4: 350M 参数严重欠拟合 (tokens/param=0.23x)
+  * V6: 数据清洗丢失 78% 数据
+  * V13 Stage 3: DropBlock+StochDepth 在低 LR 下有害
+  * V15: FFN 维度非 256 倍数导致性能退化
+- 每条配一句"教训"总结
+
+【Slide 13: 未来方向】
+- Bullet points:
+  * V15.1: 修复 FFN 维度 (1706→1792), 使用 V13 数据管线
+  * 架构搜索: 768d/12L vs 576d/14L
+  * 消融实验: 量化各技术独立贡献
+  * 最终提交: 选择 V13 或 V15.1 参赛
+
+================================================================================
+三、数据处理说明
+================================================================================
+
+1. 解析 project_context.md 中的表格:
+   - 所有表格使用标准 Markdown 格式, 可直接提取为 LaTeX tabular
+   - 表格中的数值请保持原样, 不要四舍五入
+
+2. 数据表格制作建议:
+   - 版本总览表 → 使用 booktabs 格式 (toprule/midrule/bottomrule)
+   - ZhoBLiMP 15 维度表 → 考虑拆为两页或使用小字号
+   - PPL 分阶段数据 → 使用颜色高亮最佳值 (加粗)
+   - 参数效率表 → 使用渐变色或箭头表示趋势
+
+3. 公式处理:
+   - PPL 公式: 使用标准 LaTeX math 环境
+   - Focal Loss: 使用 \mathcal{L} 等 LaTeX 命令
+   - EMA: 使用上标 (t) 表示时间步
+
+================================================================================
+四、图片引用方式
+================================================================================
+
+在 LaTeX/Beamer 中使用以下方式引用 images/ 中的图片:
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.85\textwidth]{images/xxx.png}
+  \caption{图片说明}
+\end{figure}
+
+建议图片宽度:
+- 全宽图片 (时间线、PPL 曲线): width=0.85\textwidth
+- 并排图片 (参数效率、雷达图): width=0.48\textwidth, 使用 minipage 并排
+
+================================================================================
+五、设计建议
+================================================================================
+
+1. 颜色方案:
+   - 主色调: 蓝色系 (学术风格)
+   - 成功版本: 绿色/蓝色标记
+   - 失败版本: 红色/橙色标记
+   - SOTA (V13): 金色高亮
+
+2. 字体:
+   - 标题: \Large\bfseries
+   - 正文: \normalsize 或 \small
+   - 表格: \footnotesize (空间紧张时)
+   - 中文内容: 确保 ctex 宏包加载
+
+3. 数据可视化建议:
+   - PPL 演进: 折线图 (已有图片可直接使用)
+   - 评测结果: 雷达图 (已有) + 分数对比表格
+   - 技术贡献: 横向柱状图 (已有图片)
+
+4. 重点突出:
+   - 93.5% PPL 降低 → 大字号加粗, 可能加动画
+   - 38.68 PPL → 金色/红色高亮
+   - 失败经验 → 红色边框或背景
+
+================================================================================
+六、注意事项
+================================================================================
+
+1. 所有数据均来自 project_context.md, 不要编造数字
+2. 图片文件名与 images/ 文件夹中的文件一一对应
+3. 中英文混排时注意空格和标点规范
+4. 表格数据保持原始精度, 不要省略小数位
+5. 公式使用标准 LaTeX 语法
+6. 每个 Slide 控制在 3~5 个要点, 不要过于拥挤
+7. 技术细节 (如 MNTP 机制) 用简洁的图示或伪代码说明, 不要大段文字
+
+================================================================================
+七、LaTeX 模板参考
+================================================================================
+
+已有 midterm_report.pdf 使用的 LaTeX 结构:
+- ctexart 文档类, 10pt, a4paper
+- booktabs 表格, amsmath 公式
+- graphicx 图片, hyperref 链接
+- 蓝色系 hyperref 颜色
+
+PPT 请使用 Beamer 文档类, 可以参考以下框架:
+
+\documentclass[aspectratio=169,10pt]{ctexbeamer}
+\usetheme{Madrid}  % 或其他学术风格主题
+\usecolortheme{seahorse}  % 蓝色系配色
+
+================================================================================
+
+以上为完整的制作指导。请根据 project_context.md 中的数据和 images/ 中的
+图片, 制作一份专业的学术汇报 PPT。如有任何数据不清晰的地方, 请以
+project_context.md 中的原始数据为准。
+
+祝制作顺利！

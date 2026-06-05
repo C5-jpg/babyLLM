@@ -214,7 +214,7 @@ def build_model(args, tokenizer):
         config = LlamaConfig(
             vocab_size=tokenizer.vocab_size,
             hidden_size=args.d_model,
-            intermediate_size=int(args.d_model * 8 / 3),
+            intermediate_size=round(args.d_model * 8 / 3 / 256) * 256,
             num_hidden_layers=args.n_layer,
             num_attention_heads=args.n_head,
             num_key_value_heads=args.n_kv_heads,

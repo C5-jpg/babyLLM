@@ -17,12 +17,15 @@ chinese-babylm-eval-pipeline/.git/
 # babyLLM/training_*.log
 
 # Data directories (exclude large data files)
-babyLLM/data/processed/
-babyLLM/data/processed_v2/
-babyLLM/data/processed_v3/
-babyLLM/data/processed_v6/
-babyLLM/data/processed_v7/
-babyLLM/data/raw/
+babyLLM/data/
+chinese-babylm-eval-pipeline/evaluation_data/
+
+# Binary / archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
 chinese-babylm-eval-pipeline/evaluation_data/
 
 # Model outputs
